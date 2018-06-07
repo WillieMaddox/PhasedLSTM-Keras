@@ -81,7 +81,6 @@ def main():
     plt.xlabel('Iterations, batch size ' + str(batch_size))
     plt.ylabel('Classification accuracy')
     plt.plot(acc_LSTM.losses, color='k', label='LSTM')
-    plt.hold(True)
     plt.plot(acc_PLSTM.losses, color='r', label='PLSTM')
     plt.savefig('mnist_plstm_lstm_comparison_acc.png', dpi=100)
 
@@ -90,7 +89,6 @@ def main():
     plt.xlabel('Iterations, batch size ' + str(batch_size))
     plt.ylabel('Categorical cross-entropy')
     plt.plot(loss_LSTM.losses, color='k', label='LSTM')
-    plt.hold(True)
     plt.plot(loss_PLSTM.losses, color='r', label='PLSTM')
     plt.savefig('mnist_plstm_lstm_comparison_loss.png', dpi=100)
 
