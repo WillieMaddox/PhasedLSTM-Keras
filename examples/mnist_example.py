@@ -7,7 +7,7 @@ from keras.models import Sequential
 from keras.utils import np_utils
 
 from phased_lstm_keras.PhasedLSTM import PhasedLSTM
-
+from phased_lstm_keras.PhasedLSTM import PLSTM
 
 class AccHistory(Callback):
     def on_train_begin(self, logs={}):
@@ -49,30 +49,59 @@ def main():
     print('Y_train shape:', Y_train.shape)
     print('Y_test shape:', Y_test.shape)
 
-    # LSTM with timegate
+    # LSTM with timegate (new version)
     model_PLSTM = Sequential()
-    model_PLSTM.add(PhasedLSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_PLSTM.add(PLSTM(32, input_shape=(28 * 28, 1), implementation=2))
     model_PLSTM.add(Dense(10, activation='softmax'))
-    model_PLSTM.compile(optimizer='rmsprop', loss='categorical_crossentropy',
-                        metrics=['accuracy'])
+    model_PLSTM.compile(
+        optimizer='rmsprop',
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
     model_PLSTM.summary()
     acc_PLSTM = AccHistory()
     loss_PLSTM = LossHistory()
-    model_PLSTM.fit(X_train, Y_train, epochs=nb_epoch, batch_size=batch_size,
-                    callbacks=[acc_PLSTM, loss_PLSTM])
+    model_PLSTM.fit(X_train, Y_train,
+        epochs=nb_epoch,
+        batch_size=batch_size,
+        callbacks=[acc_PLSTM, loss_PLSTM])
     score_PLSTM = model_PLSTM.evaluate(X_test, Y_test, verbose=0)
+
+    # LSTM with timegate
+    model_PhasedLSTM = Sequential()
+    model_PhasedLSTM.add(PhasedLSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_PhasedLSTM.add(Dense(10, activation='softmax'))
+    model_PhasedLSTM.compile(
+        optimizer='rmsprop',
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
+    model_PhasedLSTM.summary()
+    acc_PhasedLSTM = AccHistory()
+    loss_PhasedLSTM = LossHistory()
+    model_PhasedLSTM.fit(
+        X_train,
+        Y_train,
+        epochs=nb_epoch,
+        batch_size=batch_size,
+        callbacks=[acc_PhasedLSTM, loss_PhasedLSTM])
+    score_PhasedLSTM = model_PhasedLSTM.evaluate(X_test, Y_test, verbose=0)
 
     # Vanilla LSTM
     model_LSTM = Sequential()
     model_LSTM.add(LSTM(32, input_shape=(28 * 28, 1), implementation=2))
     model_LSTM.add(Dense(10, activation='softmax'))
-    model_LSTM.compile(optimizer='rmsprop', loss='categorical_crossentropy',
-                       metrics=['accuracy'])
+    model_LSTM.compile(
+        optimizer='rmsprop',
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
     model_LSTM.summary()
     acc_LSTM = AccHistory()
     loss_LSTM = LossHistory()
-    model_LSTM.fit(X_train, Y_train, epochs=nb_epoch, batch_size=batch_size,
-                   callbacks=[acc_LSTM, loss_LSTM])
+    model_LSTM.fit(
+        X_train,
+        Y_train,
+        epochs=nb_epoch,
+        batch_size=batch_size,
+        callbacks=[acc_LSTM, loss_LSTM])
     score_LSTM = model_LSTM.evaluate(X_test, Y_test, verbose=0)
 
     # plot results
@@ -81,7 +110,8 @@ def main():
     plt.xlabel('Iterations, batch size ' + str(batch_size))
     plt.ylabel('Classification accuracy')
     plt.plot(acc_LSTM.losses, color='k', label='LSTM')
-    plt.plot(acc_PLSTM.losses, color='r', label='PLSTM')
+    plt.plot(acc_PhasedLSTM.losses, color='r', label='PhasedLSTM')
+    plt.plot(acc_PLSTM.losses, color='g', label='PLSTM')
     plt.savefig('mnist_plstm_lstm_comparison_acc.png', dpi=100)
 
     plt.figure(2, figsize=(10, 10))
@@ -89,12 +119,14 @@ def main():
     plt.xlabel('Iterations, batch size ' + str(batch_size))
     plt.ylabel('Categorical cross-entropy')
     plt.plot(loss_LSTM.losses, color='k', label='LSTM')
-    plt.plot(loss_PLSTM.losses, color='r', label='PLSTM')
+    plt.plot(loss_PhasedLSTM.losses, color='r', label='PhasedLSTM')
+    plt.plot(loss_PLSTM.losses, color='g', label='PLSTM')
     plt.savefig('mnist_plstm_lstm_comparison_loss.png', dpi=100)
 
     # Compare test performance
     print('Test score LSTM:', score_LSTM[0])
-    print('Test score Phased LSTM:', score_PLSTM[0])
+    print('Test score Phased LSTM:', score_PhasedLSTM[0])
+    print('Test score PLSTM:', score_PLSTM[0])
 
 
 if __name__ == "__main__":
