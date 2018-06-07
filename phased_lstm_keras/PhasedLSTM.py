@@ -9,7 +9,7 @@ from keras import regularizers
 from keras import constraints
 from keras.engine import InputSpec
 from keras.legacy import interfaces
-from keras.layers import Recurrent
+from keras.legacy.layers import Recurrent
 from keras.utils.generic_utils import get_custom_objects
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
