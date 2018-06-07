@@ -19,15 +19,15 @@ def main():
     model_lstm = load_model('model_lstm.h5')
     model_lstm.summary()
 
-    model_plstm = Sequential()
-    model_plstm.add(PhasedLSTM(output_size, input_shape=input_shape))
-    model_plstm.compile('rmsprop', 'mse')
-    model_plstm.save('model_plstm.h5')
-    model_plstm = load_model('model_plstm.h5')
-    model_plstm.summary()
+    model_phasedlstm = Sequential()
+    model_phasedlstm.add(PhasedLSTM(output_size, input_shape=input_shape))
+    model_phasedlstm.compile('rmsprop', 'mse')
+    model_phasedlstm.save('model_plstm.h5')
+    model_phasedlstm = load_model('model_plstm.h5')
+    model_phasedlstm.summary()
 
     model_lstm.fit(X, Y)
-    model_plstm.fit(X, Y)
+    model_phasedlstm.fit(X, Y)
 
 
 if __name__ == "__main__":
