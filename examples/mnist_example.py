@@ -6,7 +6,7 @@ from keras.layers import Dense, LSTM
 from keras.models import Sequential
 from keras.utils import np_utils
 
-from phased_lstm_keras.PhasedLSTM import PhasedLSTM as PLSTM
+from phased_lstm_keras.PhasedLSTM import PhasedLSTM
 
 
 class AccHistory(Callback):
@@ -51,7 +51,7 @@ def main():
 
     # LSTM with timegate
     model_PLSTM = Sequential()
-    model_PLSTM.add(PLSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_PLSTM.add(PhasedLSTM(32, input_shape=(28 * 28, 1), implementation=2))
     model_PLSTM.add(Dense(10, activation='softmax'))
     model_PLSTM.compile(optimizer='rmsprop', loss='categorical_crossentropy',
                         metrics=['accuracy'])
