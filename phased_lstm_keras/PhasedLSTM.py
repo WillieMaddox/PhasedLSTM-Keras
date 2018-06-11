@@ -15,7 +15,6 @@ from keras.layers.recurrent import _generate_dropout_mask
 from keras.legacy import interfaces
 from keras.legacy.layers import Recurrent
 from keras.utils.generic_utils import get_custom_objects
-from keras.utils.generic_utils import has_arg
 
 
 def _time_distributed_dense(x, w, b=None, dropout=None,
@@ -284,9 +283,11 @@ class PhasedLSTM(Recurrent):
             def dropped_inputs():
                 return K.dropout(ones, self.dropout)
 
-            dp_mask = [K.in_train_phase(dropped_inputs,
-                                        ones,
-                                        training=training) for _ in range(4)]
+            dp_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training
+            ) for _ in range(4)]
             constants.append(dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -298,9 +299,11 @@ class PhasedLSTM(Recurrent):
             def dropped_inputs():
                 return K.dropout(ones, self.recurrent_dropout)
 
-            rec_dp_mask = [K.in_train_phase(dropped_inputs,
-                                            ones,
-                                            training=training) for _ in range(4)]
+            rec_dp_mask = [K.in_train_phase(
+                dropped_inputs,
+                ones,
+                training=training
+            ) for _ in range(4)]
             constants.append(rec_dp_mask)
         else:
             constants.append([K.cast_to_floatx(1.) for _ in range(4)])
@@ -418,18 +421,22 @@ class PLSTMCell(Layer):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
+            Default: hard sigmoid (`hard_sigmoid`).
+            If you pass `None`, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).x
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -550,32 +557,21 @@ class PLSTMCell(Layer):
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            # from LSTMCell
-            # if self.unit_forget_bias:
-            #     def bias_initializer(shape, *args, **kwargs):
-            #         return K.concatenate([
-            #             self.bias_initializer((self.units,), *args, **kwargs),
-            #             initializers.Ones()((self.units,), *args, **kwargs),
-            #             self.bias_initializer((self.units * 2,), *args, **kwargs),
-            #         ])
-            # else:
-            #     bias_initializer = self.bias_initializer
-            # self.bias = self.add_weight(
-            #     shape=(self.units * 4,),
-            #     name='bias',
-            #     initializer=bias_initializer,
-            #     regularizer=self.bias_regularizer,
-            #     constraint=self.bias_constraint)
+            if self.unit_forget_bias:
+                def bias_initializer(shape, *args, **kwargs):
+                    return K.concatenate([
+                        self.bias_initializer((self.units,), *args, **kwargs),
+                        initializers.Ones()((self.units,), *args, **kwargs),
+                        self.bias_initializer((self.units * 2,), *args, **kwargs),
+                    ])
+            else:
+                bias_initializer = self.bias_initializer
             self.bias = self.add_weight(
                 shape=(self.units * 4,),
                 name='bias',
-                initializer=self.bias_initializer,
+                initializer=bias_initializer,
                 regularizer=self.bias_regularizer,
                 constraint=self.bias_constraint)
-            if self.unit_forget_bias:
-                bias_value = np.zeros((self.units * 4,))
-                bias_value[self.units: self.units * 2] = 1.
-                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
@@ -616,7 +612,7 @@ class PLSTMCell(Layer):
                 self.dropout,
                 training=training,
                 count=4)
-        if (0 < self.recurrent_dropout < 1 and self._recurrent_dropout_mask is None):
+        if 0 < self.recurrent_dropout < 1 and self._recurrent_dropout_mask is None:
             self._recurrent_dropout_mask = _generate_dropout_mask(
                 K.ones_like(states[0]),
                 self.recurrent_dropout,
@@ -626,15 +622,13 @@ class PLSTMCell(Layer):
         h_tm1 = states[0]
         c_tm1 = states[1]
         t_tm1 = states[2]
-        dp_mask = self._dropout_mask or [K.cast_to_floatx(1.) for _ in range(4)]
-        rec_dp_mask = self._recurrent_dropout_mask or [K.cast_to_floatx(1.) for _ in range(4)]
+        dp_mask = self._dropout_mask
+        rec_dp_mask = self._recurrent_dropout_mask
 
         # time related variables, simply add +1 to t for now...starting from 0
         # need to find better way if asynchronous/irregular time input is desired
         # such as slicing input where first index is time and using that instead.
         t = t_tm1 + 1
-        # using timegate_constraint = 'non_neg' instead
-        # self.timegate_kernel = K.abs(self.timegate_kernel)
         period = self.timegate_kernel[0]
         shift = self.timegate_kernel[1]
         r_on = self.timegate_kernel[2]
@@ -660,25 +654,55 @@ class PLSTMCell(Layer):
             i = self.recurrent_activation(x_i + K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel_i))
             f = self.recurrent_activation(x_f + K.dot(h_tm1 * rec_dp_mask[1], self.recurrent_kernel_f))
             c_hat = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * rec_dp_mask[2], self.recurrent_kernel_c))
-            c = k * c_hat + (1 - k) * c_tm1
             o = self.recurrent_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3], self.recurrent_kernel_o))
 
         if self.implementation == 1:
-            x_i = K.dot(inputs * dp_mask[0], self.kernel_i) + self.bias_i
-            x_f = K.dot(inputs * dp_mask[1], self.kernel_f) + self.bias_f
-            x_c = K.dot(inputs * dp_mask[2], self.kernel_c) + self.bias_c
-            x_o = K.dot(inputs * dp_mask[3], self.kernel_o) + self.bias_o
+            if 0 < self.dropout < 1.:
+                inputs_i = inputs * dp_mask[0]
+                inputs_f = inputs * dp_mask[1]
+                inputs_c = inputs * dp_mask[2]
+                inputs_o = inputs * dp_mask[3]
+            else:
+                inputs_i = inputs
+                inputs_f = inputs
+                inputs_c = inputs
+                inputs_o = inputs
 
-            i = self.recurrent_activation(x_i + K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel_i))
-            f = self.recurrent_activation(x_f + K.dot(h_tm1 * rec_dp_mask[1], self.recurrent_kernel_f))
-            c_hat = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1 * rec_dp_mask[2], self.recurrent_kernel_c))
-            c = k * c_hat + (1 - k) * c_tm1
-            o = self.recurrent_activation(x_o + K.dot(h_tm1 * rec_dp_mask[3], self.recurrent_kernel_o))
+            x_i = K.dot(inputs_i, self.kernel_i)
+            x_f = K.dot(inputs_f, self.kernel_f)
+            x_c = K.dot(inputs_c, self.kernel_c)
+            x_o = K.dot(inputs_o, self.kernel_o)
+
+            if self.use_bias:
+                x_i = K.bias_add(x_i, self.bias_i)
+                x_f = K.bias_add(x_f, self.bias_f)
+                x_c = K.bias_add(x_c, self.bias_c)
+                x_o = K.bias_add(x_o, self.bias_o)
+
+            if 0 < self.recurrent_dropout < 1.:
+                h_tm1_i = h_tm1 * rec_dp_mask[0]
+                h_tm1_f = h_tm1 * rec_dp_mask[1]
+                h_tm1_c = h_tm1 * rec_dp_mask[2]
+                h_tm1_o = h_tm1 * rec_dp_mask[3]
+            else:
+                h_tm1_i = h_tm1
+                h_tm1_f = h_tm1
+                h_tm1_c = h_tm1
+                h_tm1_o = h_tm1
+
+            i = self.recurrent_activation(x_i + K.dot(h_tm1_i, self.recurrent_kernel_i))
+            f = self.recurrent_activation(x_f + K.dot(h_tm1_f, self.recurrent_kernel_f))
+            c_hat = f * c_tm1 + i * self.activation(x_c + K.dot(h_tm1_c, self.recurrent_kernel_c))
+            o = self.recurrent_activation(x_o + K.dot(h_tm1_o, self.recurrent_kernel_o))
 
         if self.implementation == 2:
 
-            z = K.dot(inputs * dp_mask[0], self.kernel)
-            z += K.dot(h_tm1 * rec_dp_mask[0], self.recurrent_kernel)
+            if 0. < self.dropout < 1.:
+                inputs *= dp_mask[0]
+            z = K.dot(inputs, self.kernel)
+            if 0. < self.recurrent_dropout < 1.:
+                h_tm1 *= rec_dp_mask[0]
+            z += K.dot(h_tm1, self.recurrent_kernel)
             if self.use_bias:
                 z = K.bias_add(z, self.bias)
 
@@ -690,14 +714,15 @@ class PLSTMCell(Layer):
             i = self.recurrent_activation(z0)
             f = self.recurrent_activation(z1)
             c_hat = f * c_tm1 + i * self.activation(z2)
-            c = k * c_hat + (1 - k) * c_tm1
             o = self.recurrent_activation(z3)
 
+        c = k * c_hat + (1 - k) * c_tm1
         h_hat = o * self.activation(c_hat)
         h = k * h_hat + (1 - k) * h_tm1
 
         if 0 < self.dropout + self.recurrent_dropout:
-            h._uses_learning_phase = True
+            if training is None:
+                h._uses_learning_phase = True
         return h, [h, c, t]
 
     def call_lstm(self, inputs, states, training=None):
@@ -805,6 +830,27 @@ class PLSTMCell(Layer):
                 h._uses_learning_phase = True
         return h, [h, c]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'unit_forget_bias': self.unit_forget_bias,
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'implementation': self.implementation}
+        base_config = super(PLSTMCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class PLSTM(RNN):
     """LSTM with timegate (Phased LSTM).
@@ -887,7 +933,7 @@ class PLSTM(RNN):
                  timegate_constraint='non_neg',
                  dropout=0.,
                  recurrent_dropout=0.,
-                 implementation=0,
+                 implementation=1,
                  alpha=0.001,
                  return_sequences=False,
                  return_state=False,
@@ -896,10 +942,10 @@ class PLSTM(RNN):
                  unroll=False,
                  **kwargs):
 
-        # if implementation == 0:
-        #     warnings.warn('`implementation=0` has been deprecated, '
-        #                   'and now defaults to `implementation=1`.'
-        #                   'Please update your layer call.')
+        if implementation == 0:
+            warnings.warn('`implementation=0` has been deprecated, '
+                          'and now defaults to `implementation=1`.'
+                          'Please update your layer call.')
         if K.backend() == 'cntk':
             if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
                 warnings.warn(
@@ -944,123 +990,15 @@ class PLSTM(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.alpha = alpha
 
-    def preprocess_input(self, inputs, training=None):
-        if self.implementation == 0:
-            input_shape = K.int_shape(inputs)
-            input_dim = input_shape[2]
-            timesteps = input_shape[1]
-
-            x_i = _time_distributed_dense(inputs, self.cell.kernel_i, self.cell.bias_i,
-                                          self.dropout, input_dim, self.units,
-                                          timesteps, training=training)
-            x_f = _time_distributed_dense(inputs, self.cell.kernel_f, self.cell.bias_f,
-                                          self.dropout, input_dim, self.units,
-                                          timesteps, training=training)
-            x_c = _time_distributed_dense(inputs, self.cell.kernel_c, self.cell.bias_c,
-                                          self.dropout, input_dim, self.units,
-                                          timesteps, training=training)
-            x_o = _time_distributed_dense(inputs, self.cell.kernel_o, self.cell.bias_o,
-                                          self.dropout, input_dim, self.units,
-                                          timesteps, training=training)
-            return K.concatenate([x_i, x_f, x_c, x_o], axis=2)
-        else:
-            return inputs
-
     def call(self, inputs, mask=None, training=None, initial_state=None, constants=None):
         self.cell._dropout_mask = None
         self.cell._recurrent_dropout_mask = None
-
-        # input shape: `(samples, time (padded with zeros), input_dim)`
-        # note that the .build() method of subclasses MUST define
-        # self.input_spec and self.state_spec with complete input shapes.
-        if isinstance(inputs, list):
-            inputs = inputs[0]
-        if initial_state is not None:
-            pass
-        elif self.stateful:
-            initial_state = self.states
-        else:
-            initial_state = self.get_initial_state(inputs)
-
-        if isinstance(mask, list):
-            mask = mask[0]
-
-        if len(initial_state) != len(self.states):
-            raise ValueError('Layer has ' + str(len(self.states)) +
-                             ' states but was passed ' +
-                             str(len(initial_state)) +
-                             ' initial states.')
-        input_shape = K.int_shape(inputs)
-        timesteps = input_shape[1]
-        if self.unroll and timesteps in [None, 1]:
-            raise ValueError('Cannot unroll a RNN if the '
-                             'time dimension is undefined or equal to 1. \n'
-                             '- If using a Sequential model, '
-                             'specify the time dimension by passing '
-                             'an `input_shape` or `batch_input_shape` '
-                             'argument to your first layer. If your '
-                             'first layer is an Embedding, you can '
-                             'also use the `input_length` argument.\n'
-                             '- If using the functional API, specify '
-                             'the time dimension by passing a `shape` '
-                             'or `batch_shape` argument to your Input layer.')
-
-        kwargs = {}
-        if has_arg(self.cell.call, 'training'):
-            kwargs['training'] = training
-
-        if constants:
-            if not has_arg(self.cell.call, 'constants'):
-                raise ValueError('RNN cell does not support constants')
-
-            def step(inputs, states):
-                constants = states[-self._num_constants:]
-                states = states[:-self._num_constants]
-                return self.cell.call(inputs, states, constants=constants,
-                                      **kwargs)
-        else:
-            def step(inputs, states):
-                return self.cell.call(inputs, states, **kwargs)
-
-        preprocessed_input = self.preprocess_input(inputs, training=None)
-        last_output, outputs, states = K.rnn(step,
-                                             preprocessed_input,
-                                             initial_state,
-                                             constants=constants,
-                                             go_backwards=self.go_backwards,
-                                             mask=mask,
-                                             unroll=self.unroll,
-                                             input_length=timesteps)
-        if self.stateful:
-            updates = []
-            for i in range(len(states)):
-                updates.append((self.states[i], states[i]))
-            self.add_update(updates, inputs)
-
-        if self.return_sequences:
-            output = outputs
-        else:
-            output = last_output
-
-        # Properly set learning phase
-        if getattr(last_output, '_uses_learning_phase', False):
-            output._uses_learning_phase = True
-            for state in states:
-                state._uses_learning_phase = True
-
-        if self.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)
-            return [output] + states
-        else:
-            return output
-
-        # return super(PLSTM, self).call(inputs,
-        #                               mask=mask,
-        #                               training=training,
-        #                               initial_state=initial_state)
+        return super(PLSTM, self).call(
+            inputs,
+            mask=mask,
+            training=training,
+            initial_state=initial_state
+        )
 
     @property
     def units(self):
@@ -1164,4 +1102,3 @@ class PLSTM(RNN):
         base_config = super(PLSTM, self).get_config()
         del base_config['cell']
         return dict(list(base_config.items()) + list(config.items()))
-
