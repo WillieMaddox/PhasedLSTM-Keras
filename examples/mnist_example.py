@@ -29,7 +29,7 @@ def main():
     batch_size = 128
     nb_classes = 10
     nb_epoch = 2
-
+    implementation = 2
     # input image dimensions
     img_rows, img_cols = 28, 28
 
@@ -51,7 +51,7 @@ def main():
 
     # LSTM with timegate (new version)
     model_PLSTM = Sequential()
-    model_PLSTM.add(PLSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_PLSTM.add(PLSTM(32, input_shape=(28 * 28, 1), implementation=implementation))
     model_PLSTM.add(Dense(10, activation='softmax'))
     model_PLSTM.compile(
         optimizer='rmsprop',
@@ -60,7 +60,8 @@ def main():
     model_PLSTM.summary()
     acc_PLSTM = AccHistory()
     loss_PLSTM = LossHistory()
-    model_PLSTM.fit(X_train, Y_train,
+    model_PLSTM.fit(
+        X_train, Y_train,
         epochs=nb_epoch,
         batch_size=batch_size,
         callbacks=[acc_PLSTM, loss_PLSTM])
@@ -68,7 +69,7 @@ def main():
 
     # LSTM with timegate
     model_PhasedLSTM = Sequential()
-    model_PhasedLSTM.add(PhasedLSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_PhasedLSTM.add(PhasedLSTM(32, input_shape=(28 * 28, 1), implementation=implementation))
     model_PhasedLSTM.add(Dense(10, activation='softmax'))
     model_PhasedLSTM.compile(
         optimizer='rmsprop',
@@ -78,8 +79,7 @@ def main():
     acc_PhasedLSTM = AccHistory()
     loss_PhasedLSTM = LossHistory()
     model_PhasedLSTM.fit(
-        X_train,
-        Y_train,
+        X_train, Y_train,
         epochs=nb_epoch,
         batch_size=batch_size,
         callbacks=[acc_PhasedLSTM, loss_PhasedLSTM])
@@ -87,7 +87,7 @@ def main():
 
     # Vanilla LSTM
     model_LSTM = Sequential()
-    model_LSTM.add(LSTM(32, input_shape=(28 * 28, 1), implementation=2))
+    model_LSTM.add(LSTM(32, input_shape=(28 * 28, 1), implementation=implementation))
     model_LSTM.add(Dense(10, activation='softmax'))
     model_LSTM.compile(
         optimizer='rmsprop',
@@ -97,8 +97,7 @@ def main():
     acc_LSTM = AccHistory()
     loss_LSTM = LossHistory()
     model_LSTM.fit(
-        X_train,
-        Y_train,
+        X_train, Y_train,
         epochs=nb_epoch,
         batch_size=batch_size,
         callbacks=[acc_LSTM, loss_LSTM])

@@ -12,23 +12,24 @@ def main():
     output_size = 10
     X = np.random.random((n_neurons, *input_shape))
     Y = np.random.random((n_neurons, output_size))
+    implementation = 1
 
     model_lstm = Sequential()
-    model_lstm.add(LSTM(output_size, input_shape=input_shape))
+    model_lstm.add(LSTM(output_size, input_shape=input_shape, implementation=implementation))
     model_lstm.compile('rmsprop', 'mse')
     # model_lstm.save('model_lstm.h5')
     # model_lstm = load_model('model_lstm.h5')
     model_lstm.summary()
 
     model_phasedlstm = Sequential()
-    model_phasedlstm.add(PhasedLSTM(output_size, input_shape=input_shape))
+    model_phasedlstm.add(PhasedLSTM(output_size, input_shape=input_shape, implementation=implementation))
     model_phasedlstm.compile('rmsprop', 'mse')
     # model_phasedlstm.save('model_plstm.h5')
     # model_phasedlstm = load_model('model_plstm.h5')
     model_phasedlstm.summary()
 
     model_plstm = Sequential()
-    model_plstm.add(PLSTM(output_size, input_shape=input_shape))
+    model_plstm.add(PLSTM(output_size, input_shape=input_shape, implementation=implementation))
     model_plstm.compile('rmsprop', 'mse')
     # model_plstm.save('model_plstm.h5')
     # model_plstm = load_model('model_plstm.h5')
